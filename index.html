@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ff5a36">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);box-sizing:border-box}body{margin:0}</style>
+<title>Счётчик СиксСевен</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=Manrope:wght@500;700&display=swap">
+<style>
+  /* Layout: one screen — counter on top, giant tap target filling the rest, small controls at the bottom */
+  :root {
+    --bg: #f3f1fb; --fg: #1b1830; --muted: #6b6690;
+    --accent: #ff5a36; --accent-2: #7a5cff; --on-accent: #ffffff; --line: #dcd7f0;
+    --display: "Unbounded", "Arial Black", system-ui, sans-serif;
+    --body: "Manrope", system-ui, -apple-system, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg: #14121f; --fg: #f2f0ff; --muted: #9b96bd;
+    --accent: #ff6a48; --accent-2: #9a85ff; --on-accent: #ffffff; --line: #2c2843; color-scheme: dark } }
+  :root[data-theme="dark"] {
+    --bg: #14121f; --fg: #f2f0ff; --muted: #9b96bd;
+    --accent: #ff6a48; --accent-2: #9a85ff; --on-accent: #ffffff; --line: #2c2843; color-scheme: dark }
+
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--fg); font-family: var(--body);
+    -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;
+  }
+  .app {
+    box-sizing: border-box; height: 100%; max-width: 520px; margin: 0 auto;
+    display: flex; flex-direction: column; gap: 16px;
+    padding-block: 20px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  header { text-align: center; }
+  .label { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .count {
+    margin: 4px 0 0; font-family: var(--display); font-weight: 800;
+    font-size: clamp(64px, 24vw, 128px); line-height: 1; font-variant-numeric: tabular-nums;
+    display: inline-block;
+  }
+  .count.pop { animation: pop .18s ease-out; }
+  @keyframes pop { 50% { transform: scale(1.12); color: var(--accent); } }
+  .sub { margin: 6px 0 0; font-size: 14px; color: var(--muted); }
+
+  .tap {
+    flex: 1; min-height: 220px; width: 100%;
+    border: 0; border-radius: 32px; cursor: pointer;
+    background: linear-gradient(150deg, var(--accent), var(--accent-2));
+    color: var(--on-accent); font-family: var(--display);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+    box-shadow: 0 10px 30px -12px var(--accent);
+    transition: transform .08s ease;
+    touch-action: manipulation;
+  }
+  .tap:active { transform: scale(.97); }
+  .tap:focus-visible { outline: 4px solid var(--fg); outline-offset: 4px; }
+  .tap .big { font-size: clamp(72px, 30vw, 140px); font-weight: 800; line-height: 1; }
+  .tap .hint { font-family: var(--body); font-weight: 700; font-size: 16px; opacity: .9; }
+
+  .controls { display: flex; gap: 12px; }
+  .controls button {
+    flex: 1; min-height: 52px; border-radius: 16px; cursor: pointer;
+    border: 2px solid var(--line); background: transparent; color: var(--fg);
+    font-family: var(--body); font-weight: 700; font-size: 16px;
+  }
+  .controls button:focus-visible { outline: 3px solid var(--accent-2); outline-offset: 2px; }
+  .controls button.danger { color: var(--accent); }
+  .controls button:disabled { opacity: .4; cursor: default; }
+  @media (prefers-reduced-motion: reduce) { .count.pop { animation: none; } .tap { transition: none; } }
+</style>
+</head>
+<body>
+
+<main class="app">
+  <header>
+    <p class="label">Услышал «СиксСевен»</p>
+    <output class="count" id="count" aria-live="polite">0</output>
+    <p class="sub" id="sub">раз</p>
+  </header>
+
+  <button class="tap" id="tap" type="button" aria-label="Добавить один">
+    <span class="big">+1</span>
+    <span class="hint">Жми, когда слышишь</span>
+  </button>
+
+  <div class="controls">
+    <button type="button" id="undo">−1</button>
+    <button type="button" id="reset" class="danger">Сбросить</button>
+  </div>
+</main>
+
+<script>
+  const KEY = "sixseven-count";
+  const countEl = document.getElementById("count");
+  const subEl = document.getElementById("sub");
+  const undoBtn = document.getElementById("undo");
+  const resetBtn = document.getElementById("reset");
+  let count = 0, confirmTimer = null;
+
+  try { count = parseInt(localStorage.getItem(KEY), 10) || 0; } catch (e) {}
+
+  function plural(n) {
+    const a = n % 10, b = n % 100;
+    if (a >= 2 && a <= 4 && (b < 12 || b > 14)) return "раза";
+    return "раз";
+  }
+  function render(animate) {
+    countEl.textContent = count;
+    subEl.textContent = plural(count);
+    undoBtn.disabled = count === 0;
+    try { localStorage.setItem(KEY, String(count)); } catch (e) {}
+    if (animate) { countEl.classList.remove("pop"); void countEl.offsetWidth; countEl.classList.add("pop"); }
+  }
+  function buzz() { try { navigator.vibrate && navigator.vibrate(15); } catch (e) {} }
+  function disarmReset() { clearTimeout(confirmTimer); confirmTimer = null; resetBtn.textContent = "Сбросить"; }
+
+  document.getElementById("tap").addEventListener("click", () => { count++; buzz(); disarmReset(); render(true); });
+  undoBtn.addEventListener("click", () => { if (count > 0) { count--; disarmReset(); render(false); } });
+  resetBtn.addEventListener("click", () => {
+    if (confirmTimer) { disarmReset(); count = 0; render(false); return; }
+    resetBtn.textContent = "Точно? Жми ещё";
+    confirmTimer = setTimeout(disarmReset, 3000);
+  });
+  render(false);
+</script>
+</body>
+</html>
