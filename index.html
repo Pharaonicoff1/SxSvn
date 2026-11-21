@@ -9,119 +9,212 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=Manrope:wght@500;700&display=swap">
 <style>
-  /* Layout: one screen — counter on top, giant tap target filling the rest, small controls at the bottom */
+  /* Layout: one screen — 67 wallpaper behind, counter + progress to next 67 on top, giant tap target, small controls */
   :root {
-    --bg: #f3f1fb; --fg: #1b1830; --muted: #6b6690;
-    --accent: #ff5a36; --accent-2: #7a5cff; --on-accent: #ffffff; --line: #dcd7f0;
+    --bg: #f3f1fb; --fg: #1b1830; --muted: #6b6690; --wall: rgba(122, 92, 255, .09);
+    --accent: #ff5a36; --accent-2: #7a5cff; --on-accent: #ffffff; --line: #dcd7f0; --gold: #ffb400;
     --display: "Unbounded", "Arial Black", system-ui, sans-serif;
     --body: "Manrope", system-ui, -apple-system, sans-serif;
   }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-    --bg: #14121f; --fg: #f2f0ff; --muted: #9b96bd;
-    --accent: #ff6a48; --accent-2: #9a85ff; --on-accent: #ffffff; --line: #2c2843; color-scheme: dark } }
+    --bg: #14121f; --fg: #f2f0ff; --muted: #9b96bd; --wall: rgba(154, 133, 255, .08);
+    --accent: #ff6a48; --accent-2: #9a85ff; --on-accent: #ffffff; --line: #2c2843; --gold: #ffc533; color-scheme: dark } }
   :root[data-theme="dark"] {
-    --bg: #14121f; --fg: #f2f0ff; --muted: #9b96bd;
-    --accent: #ff6a48; --accent-2: #9a85ff; --on-accent: #ffffff; --line: #2c2843; color-scheme: dark }
+    --bg: #14121f; --fg: #f2f0ff; --muted: #9b96bd; --wall: rgba(154, 133, 255, .08);
+    --accent: #ff6a48; --accent-2: #9a85ff; --on-accent: #ffffff; --line: #2c2843; --gold: #ffc533; color-scheme: dark }
 
   html, body { height: 100%; }
   body {
-    background: var(--bg); color: var(--fg); font-family: var(--body);
+    background: var(--bg); color: var(--fg); font-family: var(--body); overflow: hidden;
     -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;
   }
+  .wall {
+    position: fixed; inset: -20%; z-index: 0; pointer-events: none;
+    transform: rotate(-14deg); color: var(--wall);
+    font-family: var(--display); font-weight: 800; font-size: 44px; line-height: 1.15;
+    word-spacing: 18px; overflow: hidden; white-space: normal;
+  }
   .app {
+    position: relative; z-index: 1;
     box-sizing: border-box; height: 100%; max-width: 520px; margin: 0 auto;
-    display: flex; flex-direction: column; gap: 16px;
-    padding-block: 20px;
+    display: flex; flex-direction: column; gap: 14px;
+    padding-block: 18px;
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
   }
   header { text-align: center; }
-  .label { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .label { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+  .label b { color: var(--accent); }
   .count {
-    margin: 4px 0 0; font-family: var(--display); font-weight: 800;
+    margin: 2px 0 0; font-family: var(--display); font-weight: 800;
     font-size: clamp(64px, 24vw, 128px); line-height: 1; font-variant-numeric: tabular-nums;
     display: inline-block;
   }
   .count.pop { animation: pop .18s ease-out; }
+  .count.sixseven { color: var(--gold); }
   @keyframes pop { 50% { transform: scale(1.12); color: var(--accent); } }
-  .sub { margin: 6px 0 0; font-size: 14px; color: var(--muted); }
+  .sub { margin: 4px 0 0; font-size: 14px; color: var(--muted); }
+
+  .progress { display: grid; gap: 6px; }
+  .bar { height: 10px; border-radius: 99px; background: var(--line); overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; border-radius: inherit;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .2s ease; }
+  .progress p { margin: 0; display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  .banner {
+    margin: 0; text-align: center; padding: 10px 12px; border-radius: 14px;
+    background: var(--gold); color: #1b1830; font-family: var(--display); font-weight: 800; font-size: 15px;
+    animation: shake .5s ease;
+  }
+  @keyframes shake { 20% { transform: rotate(-3deg) scale(1.04); } 40% { transform: rotate(3deg); } 60% { transform: rotate(-2deg); } }
 
   .tap {
-    flex: 1; min-height: 220px; width: 100%;
+    position: relative; overflow: hidden;
+    flex: 1; min-height: 200px; width: 100%;
     border: 0; border-radius: 32px; cursor: pointer;
     background: linear-gradient(150deg, var(--accent), var(--accent-2));
     color: var(--on-accent); font-family: var(--display);
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
     box-shadow: 0 10px 30px -12px var(--accent);
-    transition: transform .08s ease;
-    touch-action: manipulation;
+    transition: transform .08s ease; touch-action: manipulation;
   }
   .tap:active { transform: scale(.97); }
   .tap:focus-visible { outline: 4px solid var(--fg); outline-offset: 4px; }
-  .tap .big { font-size: clamp(72px, 30vw, 140px); font-weight: 800; line-height: 1; }
-  .tap .hint { font-family: var(--body); font-weight: 700; font-size: 16px; opacity: .9; }
+  .tap .hands { display: flex; gap: 18px; font-size: clamp(64px, 26vw, 128px); font-weight: 800; line-height: 1; }
+  .tap .hands span { display: inline-block; animation: juggle 1.2s ease-in-out infinite; }
+  .tap .hands span:last-child { animation-delay: -.6s; }
+  @keyframes juggle { 0%, 100% { transform: translateY(-6px); } 50% { transform: translateY(6px); } }
+  .tap .plus { font-size: 22px; font-weight: 800; }
+  .tap .hint { font-family: var(--body); font-weight: 700; font-size: 15px; opacity: .9; }
+
+  .fly {
+    position: fixed; z-index: 5; pointer-events: none; font-family: var(--display); font-weight: 800;
+    color: var(--on-accent); text-shadow: 0 2px 8px rgba(0,0,0,.25);
+    animation: fly .9s ease-out forwards;
+  }
+  .fly.gold { color: var(--gold); }
+  @keyframes fly { from { opacity: 1; transform: translate(-50%, -50%) scale(.8); }
+    to { opacity: 0; transform: translate(calc(-50% + var(--dx)), calc(-50% - 140px)) scale(1.3) rotate(var(--rot)); } }
 
   .controls { display: flex; gap: 12px; }
   .controls button {
-    flex: 1; min-height: 52px; border-radius: 16px; cursor: pointer;
-    border: 2px solid var(--line); background: transparent; color: var(--fg);
+    flex: 1; min-height: 50px; border-radius: 16px; cursor: pointer;
+    border: 2px solid var(--line); background: var(--bg); color: var(--fg);
     font-family: var(--body); font-weight: 700; font-size: 16px;
   }
   .controls button:focus-visible { outline: 3px solid var(--accent-2); outline-offset: 2px; }
   .controls button.danger { color: var(--accent); }
   .controls button:disabled { opacity: .4; cursor: default; }
-  @media (prefers-reduced-motion: reduce) { .count.pop { animation: none; } .tap { transition: none; } }
+  footer { margin: 0; text-align: center; font-size: 12px; color: var(--muted); letter-spacing: .1em; }
+  @media (prefers-reduced-motion: reduce) {
+    .count.pop, .banner, .tap .hands span { animation: none; } .tap { transition: none; } .fly { display: none; }
+  }
 </style>
 </head>
 <body>
 
+<div class="wall" id="wall" aria-hidden="true"></div>
 <main class="app">
   <header>
-    <p class="label">Услышал «СиксСевен»</p>
+    <p class="label">Услышал <b>«СиксСевен»</b> · 67</p>
     <output class="count" id="count" aria-live="polite">0</output>
     <p class="sub" id="sub">раз</p>
   </header>
 
-  <button class="tap" id="tap" type="button" aria-label="Добавить один">
-    <span class="big">+1</span>
-    <span class="hint">Жми, когда слышишь</span>
+  <div class="progress">
+    <div class="bar"><i id="bar"></i></div>
+    <p><span id="left">До 67 осталось 67</span><span id="laps">Сиксевенов: 0</span></p>
+  </div>
+
+  <p class="banner" id="banner" hidden></p>
+
+  <button class="tap" id="tap" type="button" aria-label="Добавить один, услышал СиксСевен">
+    <span class="hands"><span>6</span><span>7</span></span>
+    <span class="plus">+1</span>
+    <span class="hint" id="hint">SIX… SEVEN! Жми, когда слышишь</span>
   </button>
 
   <div class="controls">
     <button type="button" id="undo">−1</button>
     <button type="button" id="reset" class="danger">Сбросить</button>
   </div>
+  <footer>6 7 · SIX SEVEN · СИКС СЕВЕН · ШЕСТЬ СЕМЬ · 67</footer>
 </main>
 
 <script>
   const KEY = "sixseven-count";
-  const countEl = document.getElementById("count");
-  const subEl = document.getElementById("sub");
-  const undoBtn = document.getElementById("undo");
-  const resetBtn = document.getElementById("reset");
-  let count = 0, confirmTimer = null;
+  const $ = id => document.getElementById(id);
+  const countEl = $("count"), subEl = $("sub"), undoBtn = $("undo"), resetBtn = $("reset");
+  const barEl = $("bar"), leftEl = $("left"), lapsEl = $("laps"), bannerEl = $("banner"), hintEl = $("hint");
+  const WORDS = ["67", "SIX SEVEN", "СиксСевен", "6 7", "сиксевен", "шесть-семь", "67!", "SIX… SEVEN"];
+  const HINTS = ["SIX… SEVEN! Жми, когда слышишь", "Опять 67? Жми!", "Сикс-севен засчитан", "Шесть… семь… жми!", "67, 67, 67"];
+  let count = 0, confirmTimer = null, bannerTimer = null;
+
+  $("wall").textContent = Array.from({ length: 400 }, (_, i) => i % 9 === 4 ? "SIX SEVEN" : "67").join(" ");
 
   try { count = parseInt(localStorage.getItem(KEY), 10) || 0; } catch (e) {}
 
   function plural(n) {
     const a = n % 10, b = n % 100;
-    if (a >= 2 && a <= 4 && (b < 12 || b > 14)) return "раза";
-    return "раз";
+    return a >= 2 && a <= 4 && (b < 12 || b > 14) ? "раза" : "раз";
+  }
+  function special(n) {
+    if (n > 0 && n % 67 === 0) return n === 67 ? "67 РАЗ! ЭТО СИКС СЕВЕН СИКС СЕВЕН!" : `${n} = 67 × ${n / 67}. SIX SEVEN!`;
+    if (String(n).includes("67")) return `${n} — в числе есть 67! Сиксевен!`;
+    if (n === 6) return "Шесть… а дальше?";
+    if (n === 7) return "…СЕМЬ! 6 7!";
+    return "";
   }
   function render(animate) {
     countEl.textContent = count;
     subEl.textContent = plural(count);
     undoBtn.disabled = count === 0;
+    const into = count % 67;
+    barEl.style.width = (into / 67 * 100) + "%";
+    leftEl.textContent = `До ${(Math.floor(count / 67) + 1) * 67} осталось ${67 - into}`;
+    lapsEl.textContent = `Сиксевенов: ${Math.floor(count / 67)}`;
+    const msg = special(count);
+    countEl.classList.toggle("sixseven", !!msg && msg.includes("67"));
     try { localStorage.setItem(KEY, String(count)); } catch (e) {}
-    if (animate) { countEl.classList.remove("pop"); void countEl.offsetWidth; countEl.classList.add("pop"); }
+    if (animate) {
+      countEl.classList.remove("pop"); void countEl.offsetWidth; countEl.classList.add("pop");
+      hintEl.textContent = HINTS[count % HINTS.length];
+      if (msg) showBanner(msg);
+    }
   }
-  function buzz() { try { navigator.vibrate && navigator.vibrate(15); } catch (e) {} }
+  function showBanner(text) {
+    bannerEl.textContent = text; bannerEl.hidden = false;
+    bannerEl.style.animation = "none"; void bannerEl.offsetWidth; bannerEl.style.animation = "";
+    clearTimeout(bannerTimer); bannerTimer = setTimeout(() => { bannerEl.hidden = true; }, 3500);
+  }
+  function fly(x, y, many) {
+    const n = many ? 12 : 1;
+    for (let i = 0; i < n; i++) {
+      const el = document.createElement("span");
+      el.className = "fly" + (many ? " gold" : "");
+      el.textContent = many ? "67" : WORDS[Math.floor(Math.random() * WORDS.length)];
+      el.style.left = x + "px"; el.style.top = y + "px";
+      el.style.fontSize = (many ? 22 + Math.random() * 20 : 22) + "px";
+      el.style.setProperty("--dx", ((Math.random() - .5) * (many ? 260 : 80)) + "px");
+      el.style.setProperty("--rot", ((Math.random() - .5) * 40) + "deg");
+      document.body.appendChild(el);
+      el.addEventListener("animationend", () => el.remove());
+    }
+  }
+  function buzz(pattern) { try { navigator.vibrate && navigator.vibrate(pattern); } catch (e) {} }
   function disarmReset() { clearTimeout(confirmTimer); confirmTimer = null; resetBtn.textContent = "Сбросить"; }
 
-  document.getElementById("tap").addEventListener("click", () => { count++; buzz(); disarmReset(); render(true); });
+  $("tap").addEventListener("click", e => {
+    count++; disarmReset();
+    const big = count % 67 === 0;
+    buzz(big ? [60, 40, 60, 40, 60] : 15);
+    const r = e.currentTarget.getBoundingClientRect();
+    fly(e.clientX || r.left + r.width / 2, e.clientY || r.top + r.height / 2, big);
+    render(true);
+  });
   undoBtn.addEventListener("click", () => { if (count > 0) { count--; disarmReset(); render(false); } });
   resetBtn.addEventListener("click", () => {
-    if (confirmTimer) { disarmReset(); count = 0; render(false); return; }
+    if (confirmTimer) { disarmReset(); count = 0; bannerEl.hidden = true; render(false); return; }
     resetBtn.textContent = "Точно? Жми ещё";
     confirmTimer = setTimeout(disarmReset, 3000);
   });
